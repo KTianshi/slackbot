@@ -1,20 +1,15 @@
 const { WebClient } = require('@slack/web-api');
 const axios = require('axios');
+const config = require('./config');
 
 // Configuration
 const CONFIG = {
-    slack: {
-        token: 'xoxb-5812224118004-9039556462005-9a209dXU3RyVbPDU9p5dQPEA'
-    },
-    statsig: {
-        apiKey: 'console-CLzsS36tIwaj9pxj7dw44ArHQ8LCBBWm197KHh52FSk',
-        baseUrl: 'https://statsigapi.net/console/v1/metrics'
-    },
     events: {
         // User metrics
         new_accounts: { id: 'new_accounts::event_count', name: 'New Accounts Created', val: 'No Data' },
         completed_onboarding: { id: 'completed_onboarding::event_count', name: 'Completed Onboarding', val: 'No Data' },
         new_paying_users: { id: 'new_paying_users::event_count', name: 'New Paying Users', val: 'No Data' },
+        new_successful_users: { id: 'new_successful_users::event_count', name: 'New Successful Users', val: 'No Data' },
         // Sheet metrics
         sheet_created: { id: 'sheet_created::event_count', name: 'Sheets Created' },
         template_opened: { id: 'template_opened::event_count', name: 'Templates Opened' },
@@ -36,15 +31,15 @@ const CONFIG = {
 };
 
 // Initialize Slack client
-const slack = new WebClient(CONFIG.slack.token);
+const slack = new WebClient(config.slack.token);
 
 // Fetch metrics for a specific date
 async function fetchMetrics(date) {
     const metrics = {};
     for (const [eventName, config] of Object.entries(CONFIG.events)) {
         try {
-            const response = await axios.get(CONFIG.statsig.baseUrl, {
-                headers: { 'STATSIG-API-KEY': CONFIG.statsig.apiKey },
+            const response = await axios.get(config.statsig.baseUrl, {
+                headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
                 params: {
                     id: config.id,
                     date: date.toISOString().split('T')[0]
@@ -155,7 +150,7 @@ function formatAllTimeMetricsTable() {
 async function sendSlackMessage(message) {
     try {
         await slack.chat.postMessage({
-            channel: 'C091T04T7PB',
+            channel: config.slack.channelId,
             text: message
         });
     } catch (error) {
@@ -170,8 +165,8 @@ async function getSumForCellEnriched() {
     const currentDate = new Date(start);
     while (currentDate <= end) {
         try {
-            const response = await axios.get(CONFIG.statsig.baseUrl, {
-                headers: { 'STATSIG-API-KEY': CONFIG.statsig.apiKey },
+            const response = await axios.get(config.statsig.baseUrl, {
+                headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
                 params: {
                     id: 'cell_enriched::event_count',
                     date: currentDate.toISOString().split('T')[0]
@@ -233,8 +228,8 @@ async function generateWeeklyReport() {
         
         while (currentDate <= end) {
             try {
-                const response = await axios.get(CONFIG.statsig.baseUrl, {
-                    headers: { 'STATSIG-API-KEY': CONFIG.statsig.apiKey },
+                const response = await axios.get(config.statsig.baseUrl, {
+                    headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
                     params: {
                         id: config.id,
                         date: currentDate.toISOString().split('T')[0]
@@ -261,8 +256,8 @@ async function generateWeeklyReport() {
         
         while (currentDate <= previousWeekEnd) {
             try {
-                const response = await axios.get(CONFIG.statsig.baseUrl, {
-                    headers: { 'STATSIG-API-KEY': CONFIG.statsig.apiKey },
+                const response = await axios.get(config.statsig.baseUrl, {
+                    headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
                     params: {
                         id: config.id,
                         date: currentDate.toISOString().split('T')[0]

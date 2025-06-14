@@ -1,6 +1,15 @@
+require('dotenv').config();
 const { WebClient } = require('@slack/web-api');
 const axios = require('axios');
-const config = require('./config');
+
+// Validate required environment variables
+const requiredEnvVars = ['SLACK_BOT_TOKEN', 'SLACK_CHANNEL_ID', 'STATSIG_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars.join(', '));
+    process.exit(1);
+}
 
 // Configuration
 const CONFIG = {
@@ -31,15 +40,15 @@ const CONFIG = {
 };
 
 // Initialize Slack client
-const slack = new WebClient(config.slack.token);
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 // Fetch metrics for a specific date
 async function fetchMetrics(date) {
     const metrics = {};
     for (const [eventName, config] of Object.entries(CONFIG.events)) {
         try {
-            const response = await axios.get(config.statsig.baseUrl, {
-                headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
+            const response = await axios.get('https://statsigapi.net/console/v1/metrics', {
+                headers: { 'STATSIG-API-KEY': process.env.STATSIG_API_KEY },
                 params: {
                     id: config.id,
                     date: date.toISOString().split('T')[0]
@@ -150,7 +159,7 @@ function formatAllTimeMetricsTable() {
 async function sendSlackMessage(message) {
     try {
         await slack.chat.postMessage({
-            channel: config.slack.channelId,
+            channel: process.env.SLACK_CHANNEL_ID,
             text: message
         });
     } catch (error) {
@@ -165,8 +174,8 @@ async function getSumForCellEnriched() {
     const currentDate = new Date(start);
     while (currentDate <= end) {
         try {
-            const response = await axios.get(config.statsig.baseUrl, {
-                headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
+            const response = await axios.get('https://statsigapi.net/console/v1/metrics', {
+                headers: { 'STATSIG-API-KEY': process.env.STATSIG_API_KEY },
                 params: {
                     id: 'cell_enriched::event_count',
                     date: currentDate.toISOString().split('T')[0]

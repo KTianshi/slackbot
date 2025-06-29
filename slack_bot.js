@@ -27,8 +27,8 @@ const CONFIG = {
         column_renamed: { id: 'column_renamed::event_count', name: 'Columns Renamed' },
         column_update_type: { id: 'column_update_type::event_count', name: 'Column Types Updated' },
         sheet_shared: { id: 'sheet_shared::event_count', name: 'Sheets Shared' },
-        cell_enriched: { id: 'cell_enriched::event_count', name: 'Cells Enriched' },
-        enrich_clicked: { id: 'enrich_clicked::event_count', name: 'Enrich Clicked' },
+        cell_enriched: { id: 'cell_enriched::event_count', name: 'Cells Enriched', val: 'No Data' },
+        enrich_clicked: { id: 'enrich_clicked::event_count', name: 'Enrich Clicked', val: 'No Data' },
     },
     allTime: {
         total_accounts: { name: 'New Accounts Created', val: 'No Data' },
@@ -167,30 +167,6 @@ async function sendSlackMessage(message) {
     }
 }
 
-// Add this helper function
-async function getSumForCellEnriched() {
-    const { start, end } = getWeekDates();
-    let sum = 0;
-    const currentDate = new Date(start);
-    while (currentDate <= end) {
-        try {
-            const response = await axios.get('https://statsigapi.net/console/v1/metrics', {
-                headers: { 'STATSIG-API-KEY': process.env.STATSIG_API_KEY },
-                params: {
-                    id: 'cell_enriched::event_count',
-                    date: currentDate.toISOString().split('T')[0]
-                }
-            });
-            const dataPoint = response.data?.data?.find(d => d.unit_type === 'overall');
-            sum += dataPoint?.value || 0;
-        } catch (error) {
-            sum += 0;
-        }
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    return sum;
-}
-
 // Generate daily report
 async function generateReport() {
     const yesterday = new Date();
@@ -202,10 +178,6 @@ async function generateReport() {
 
     const yesterdayMetrics = await fetchMetrics(yesterday);
     const dayBeforeMetrics = await fetchMetrics(dayBeforeYesterday);
-
-    // Update all-time metrics with the past week's sum for cell_enriched
-    const pastWeekSum = await getSumForCellEnriched();
-    CONFIG.allTime.cell_enriched.val = pastWeekSum.toString();
 
     const dateStr = yesterday.toISOString().split('T')[0];
     const message = [

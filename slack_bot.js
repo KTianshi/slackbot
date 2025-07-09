@@ -16,26 +16,16 @@ const CONFIG = {
     events: {
         // User metrics
         new_accounts: { id: 'new_accounts::event_count', name: 'New Accounts Created', val: 'No Data' },
-        completed_onboarding: { id: 'completed_onboarding::event_count', name: 'Completed Onboarding', val: 'No Data' },
+        completed_onboarding: { id: 'onboarding_completed::event_count', name: 'Completed Onboarding' },
         new_paying_users: { id: 'new_paying_users::event_count', name: 'New Paying Users', val: 'No Data' },
         new_successful_users: { id: 'new_successful_users::event_count', name: 'New Successful Users', val: 'No Data' },
         // Sheet metrics
         sheet_created: { id: 'sheet_created::event_count', name: 'Sheets Created' },
         template_opened: { id: 'template_opened::event_count', name: 'Templates Opened' },
-        row_added: { id: 'row_added::event_count', name: 'Rows Added' },
-        column_added: { id: 'column_added::event_count', name: 'Columns Added' },
-        column_renamed: { id: 'column_renamed::event_count', name: 'Columns Renamed' },
-        column_update_type: { id: 'column_update_type::event_count', name: 'Column Types Updated' },
+        sheet_edit: { id: 'sheet_edit::event_count', name: 'Sheet Edits' },
         sheet_shared: { id: 'sheet_shared::event_count', name: 'Sheets Shared' },
-        cell_enriched: { id: 'cell_enriched::event_count', name: 'Cells Enriched', val: 'No Data' },
-        enrich_clicked: { id: 'enrich_clicked::event_count', name: 'Enrich Clicked', val: 'No Data' },
-    },
-    allTime: {
-        total_accounts: { name: 'New Accounts Created', val: 'No Data' },
-        total_onboarding: { name: 'Completed Onboarding', val: 'No Data' },
-        paying_accounts: { name: 'Paying Users', val: 'No Data' },
-        successful_users: { name: 'Successful Users', val: 'No Data' },
-        cell_enriched: { name: 'Total Cells Enriched', val: 'No Data' }
+        cell_enriched: { id: 'cell_completed::event_count', name: 'Cells Enriched' },
+        enrich_clicked: { id: 'cells_requested::event_count', name: 'Enrich Clicked' },
     }
 };
 
@@ -54,7 +44,12 @@ async function fetchMetrics(date) {
                     date: date.toISOString().split('T')[0]
                 }
             });
+            
+
+            
+            // For all events, use the overall data point
             const dataPoint = response.data?.data?.find(d => d.unit_type === 'overall');
+            
             metrics[eventName] = {
                 value: dataPoint?.value || 0,
                 displayName: config.name
@@ -79,13 +74,16 @@ function formatMetricsTable(yesterdayMetrics, dayBeforeMetrics) {
     const userMetricsRows = Object.entries(CONFIG.events)
         .filter(([key]) => ['new_accounts', 'completed_onboarding', 'new_paying_users', 'new_successful_users'].includes(key))
         .map(([eventName, config]) => {
-            const value = config.val || 'No Data';
-            return `${config.name.padEnd(25)} | ${value.toString().padEnd(12)} | ${'N/A'.padStart(9)}`;
+            const metric = yesterdayMetrics[eventName];
+            const value = metric ? metric.value : 0;
+            const previousValue = dayBeforeMetrics[eventName]?.value || 0;
+            const percentageChange = calculatePercentageChange(value, previousValue);
+            return `${config.name.padEnd(25)} | ${value.toString().padEnd(12)} | ${percentageChange.padStart(9)}`;
         });
 
     // Sheet Metrics Section
     const sheetMetricsRows = Object.entries(yesterdayMetrics)
-        .filter(([key]) => ['sheet_created', 'sheet_shared', 'template_opened', 'row_added', 'column_added', 'column_renamed', 'column_update_type', 'cell_enriched', 'enrich_clicked'].includes(key))
+        .filter(([key]) => ['sheet_created', 'sheet_shared', 'template_opened', 'sheet_edit', 'cell_enriched', 'enrich_clicked'].includes(key))
         .map(([eventName, metric]) => {
             const previousValue = dayBeforeMetrics[eventName]?.value || 0;
             const percentageChange = calculatePercentageChange(metric.value, previousValue);
@@ -119,13 +117,16 @@ function formatWeeklyMetricsTable(weeklyMetrics, previousWeekMetrics) {
     const userMetricsRows = Object.entries(CONFIG.events)
         .filter(([key]) => ['new_accounts', 'completed_onboarding', 'new_paying_users', 'new_successful_users'].includes(key))
         .map(([eventName, config]) => {
-            const value = config.val || 'No Data';
-            return `${config.name.padEnd(25)} | ${value.toString().padEnd(12)} | ${'N/A'.padStart(9)}`;
+            const metric = weeklyMetrics[eventName];
+            const value = metric ? metric.value : 0;
+            const previousValue = previousWeekMetrics[eventName]?.value || 0;
+            const percentageChange = calculatePercentageChange(value, previousValue);
+            return `${config.name.padEnd(25)} | ${value.toString().padEnd(12)} | ${percentageChange.padStart(9)}`;
         });
 
     // Sheet Metrics Section
     const sheetMetricsRows = Object.entries(weeklyMetrics)
-        .filter(([key]) => ['sheet_created', 'sheet_shared', 'template_opened', 'row_added', 'column_added', 'column_renamed', 'column_update_type', 'cell_enriched', 'enrich_clicked'].includes(key))
+        .filter(([key]) => ['sheet_created', 'sheet_shared', 'template_opened', 'sheet_edit', 'cell_enriched', 'enrich_clicked'].includes(key))
         .map(([eventName, metric]) => {
             const previousValue = previousWeekMetrics[eventName]?.value || 0;
             const percentageChange = calculatePercentageChange(metric.value, previousValue);
@@ -141,19 +142,7 @@ function formatWeeklyMetricsTable(weeklyMetrics, previousWeekMetrics) {
     ].join('\n');
 }
 
-// Format all-time metrics table
-function formatAllTimeMetricsTable() {
-    const allTimeRows = Object.entries(CONFIG.allTime)
-        .map(([key, metric]) => {
-            return `${metric.name.padEnd(25)} | ${metric.val.toString().padEnd(12)}`;
-        });
 
-    return [
-        "Metric                    | Total Value",
-        "--------------------------|-------------",
-        ...allTimeRows
-    ].join('\n');
-}
 
 // Send message to Slack
 async function sendSlackMessage(message) {
@@ -184,10 +173,6 @@ async function generateReport() {
         `*Paradigm Daily Metrics Report (${dateStr})*\n`,
         "```",
         formatMetricsTable(yesterdayMetrics, dayBeforeMetrics),
-        "```\n",
-        "*All-Time Statistics*",
-        "```",
-        formatAllTimeMetricsTable(),
         "```"
     ].join('\n');
 

@@ -194,8 +194,8 @@ async function generateWeeklyReport() {
         
         while (currentDate <= end) {
             try {
-                const response = await axios.get(config.statsig.baseUrl, {
-                    headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
+                const response = await axios.get('https://statsigapi.net/console/v1/metrics', {
+                    headers: { 'STATSIG-API-KEY': process.env.STATSIG_API_KEY },
                     params: {
                         id: config.id,
                         date: currentDate.toISOString().split('T')[0]
@@ -222,8 +222,8 @@ async function generateWeeklyReport() {
         
         while (currentDate <= previousWeekEnd) {
             try {
-                const response = await axios.get(config.statsig.baseUrl, {
-                    headers: { 'STATSIG-API-KEY': config.statsig.apiKey },
+                const response = await axios.get('https://statsigapi.net/console/v1/metrics', {
+                    headers: { 'STATSIG-API-KEY': process.env.STATSIG_API_KEY },
                     params: {
                         id: config.id,
                         date: currentDate.toISOString().split('T')[0]
